@@ -1,23 +1,28 @@
 # VerifiAI - TrustChain AI Application
 
-A platform for establishing trust in AI systems using cheqd's decentralized identifiers (DIDs) and verifiable credentials (VCs).
+In an era of autonomous agents and synthetic media, how do we trust what’s real — and who’s responsible?
 
-## Features
+TrustChain AI is a decentralized verification layer for AI agents and their outputs. Powered by DIDs (Decentralized Identifiers), Verifiable Credentials (VCs), and DID-Linked Resources (DLRs) from the cheqd network, TrustChain AI bridges the agentic economy with human-centric trust.
 
-- AI agent verification through verifiable credentials
-- Content provenance tracking using C2PA standard
-- DID-based user authentication
-- Verifiable dataset marketplace
-- Secure OpenAI API integration via server-side proxy
+We enable:
 
-## Security Enhancements
+✅ Trustworthy AI agent identity: Sign, verify, and delegate actions across multi-agent systems using DIDs and authorization credentials.
 
-This application implements a secure approach for OpenAI API integration:
+🔗 Cross-agent proof exchange: Enable agents to verify each other’s roles, capabilities, and provenance in real time.
 
-- API keys are stored on the server side only, using environment variables
-- Client-side requests are proxied through a secure backend
-- API credentials are never exposed to the client
-- All API communications are handled via HTTPS
+🧾 Verifiable AI content: Tag, anchor, and cryptographically prove the origin and integrity of generated content (text, images, data).
+
+📂 Verified data pipelines: Consumers can audit datasets and agent reasoning trails using decentralized trust registries and linked resources.
+
+TrustChain AI empowers trust by design, not trust by reputation.
+
+Built for:
+
+🔐 AI developers embedding provenance and identity into autonomous systems
+
+🧠 Multi-agent workflows verifying delegation and authorship
+
+🌍 End-users & regulators demanding transparency in AI decisions
 
 ## Prerequisites
 
@@ -29,7 +34,7 @@ This application implements a secure approach for OpenAI API integration:
 
 1. Clone the repository:
    ```
-   git clone https://github.com/yourusername/verifi-ai.git
+   git clone https://github.com/yourusername/trustchain.git
    cd verifi-ai
    ```
 
