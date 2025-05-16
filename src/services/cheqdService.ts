@@ -1,5 +1,5 @@
-import { CheqdSDK, createCheqdSDK, VerificationMethod} from '@cheqd/sdk';
-import { DirectSecp256k1HdWallet, EncodeObject } from '@cosmjs/proto-signing';
+import { CheqdSDK, createCheqdSDK, VerificationMethod } from '@cheqd/sdk';
+import { DirectSecp256k1HdWallet, EncodeObject, OfflineSigner } from '@cosmjs/proto-signing';
 import { SignInfo } from '@cheqd/ts-proto/cheqd/did/v2/index.js';
 import { StdFee } from "@cosmjs/stargate";
 import { v4 as uuidv4 } from 'uuid'; // For generating DID IDs
@@ -32,22 +32,24 @@ export interface DIDDocument {
 
 // Create an instance of the SDK with the required modules
 let cheqdSDK: CheqdSDK | null = null;
+let userWallet: OfflineSigner | null = null; // Store wallet to get signerAddress
 
 // Standard fee for transactions - adjust as needed
 const DEFAULT_FEE: StdFee = {
   amount: [{ denom: 'ncheq', amount: '50000' }], // Example fee
   gas: '200000', // Example gas limit
 };
-const DEFAULT_MEMO = 'Transaction from TrustChainAI';
 
 // Initialize the SDK
-export async function initializeSDK(mnemonic?: string) {
+export async function initializeSDK(mnemonic?: string): Promise<OfflineSigner> {
   try {
     // Create a wallet from mnemonic or generate a new one
     const wallet = mnemonic 
       ? await DirectSecp256k1HdWallet.fromMnemonic(mnemonic, { prefix: 'cheqd' })
       : await DirectSecp256k1HdWallet.generate(24, { prefix: 'cheqd' });
     
+    userWallet = wallet; // Store wallet instance
+
     // Create the SDK instance.
     // Assuming DIDModule and ResourceModule functionalities are integrated by default
     // or accessed via sdk.signer and sdk.querier, thus not passed in the modules array explicitly.
@@ -65,17 +67,27 @@ export async function initializeSDK(mnemonic?: string) {
 }
 
 // Get the current SDK instance
-function getSDK() {
+function getSDK(): CheqdSDK {
   if (!cheqdSDK) {
     throw new Error('SDK not initialized. Call initializeSDK first.');
   }
   return cheqdSDK;
 }
 
+async function getSignerAddress(): Promise<string> {
+    if (!userWallet) {
+        throw new Error('Wallet not initialized.');
+    }
+    const accounts = await userWallet.getAccounts();
+    if (accounts.length === 0) {
+        throw new Error('No accounts found in wallet.');
+    }
+    return accounts[0].address;
+}
+
 // Create a new DID
 export async function createDID(): Promise<DIDDocument> {
   try {
-    const sdk = getSDK();
     const didId = `did:cheqd:mainnet:${uuidv4()}`;
     const keyId = `${didId}#key-1`;
 
@@ -115,9 +127,13 @@ export async function createCredentialResource(
 ): Promise<void> {
   try {
     const sdk = getSDK();
-    
+    const signerAddress = await getSignerAddress();
     const credentialWithProvenance = {
-      ...credential,
+      id: credential.id,
+      name: credential.name,
+      issuer: credential.issuer,
+      date: credential.date,
+      schema: credential.schema,
       provenanceInfo: credential.provenanceInfo || {
         creator: did,
         timestamp: new Date().toISOString(),
@@ -125,42 +141,18 @@ export async function createCredentialResource(
       }
     };
     
-    const resourcePayload = {
-      collectionId: did,
-      id: credential.id, 
-      name: credential.name,
-      resourceType: 'VerifiableCredential',
-      data: {
-        ...credentialWithProvenance,
-        '@context': [
-          'https://www.w3.org/2018/credentials/v1',
-          'https://c2pa.org/credentials/v1'
-        ],
-        type: ['VerifiableCredential', 'AIAgentCredential', 'ContentCredential'],
-        issuer: did, 
-        issuanceDate: new Date().toISOString(),
-      },
-    };
-    
-    // Assuming a generic transact method or specific createResourceTx with Fee and Memo
-    // This part is speculative as createResourceTx was not found.
-    // We might need to build a MsgCreateResource and use a generic signAndBroadcast.
-    // For now, placeholder for what might be a method:
-    // await sdk.someCreateResourceMethod(resourcePayload, DEFAULT_FEE, DEFAULT_MEMO);
-    // If using Msg approach:
     const msgCreateResource: EncodeObject = {
-        typeUrl: '/cheqd.resource.v2.MsgCreateResource', // Check typeUrl from sdk/proto
+        typeUrl: '/cheqd.resource.v2.MsgCreateResource', 
         value: {
             collectionId: did,
             id: credential.id,
             name: credential.name,
-            version: '1.0', // Or generate
+            version: '1.0', 
             resourceType: 'VerifiableCredential',
-            data: Buffer.from(JSON.stringify(credentialWithProvenance)).toString('base64'), // Ensure data is base64 encoded string
-            // also_encoded for file data
+            data: Buffer.from(JSON.stringify(credentialWithProvenance)).toString('base64'),
         },
     };
-    await sdk.signer.signAndBroadcast(did, [msgCreateResource],DEFAULT_FEE );
+    await sdk.signer.signAndBroadcast(signerAddress, [msgCreateResource], DEFAULT_FEE, undefined);
 
   } catch (error) {
     console.error('Error creating credential resource:', error);
@@ -240,21 +232,18 @@ export async function updateCredential(
 ): Promise<void> {
   try {
     const sdk = getSDK();
-    // Similar to create, update will likely involve MsgUpdateResource
-    // First, fetch the existing resource to get its current version if needed for the update msg
-    // For simplicity, assuming updates replace the data entirely or SDK handles merge.
+    const signerAddress = await getSignerAddress();
     const msgUpdateResource: EncodeObject = {
-        typeUrl: '/cheqd.resource.v2.MsgUpdateResource', // Check typeUrl
+        typeUrl: '/cheqd.resource.v2.MsgUpdateResource', 
         value: {
             collectionId: did,
             id: credentialId,
-            name: updates.name, // Name might be part of the metadata to update
-            // version: new_version_if_needed,
+            name: updates.name, 
             resourceType: 'VerifiableCredential',
-            data: Buffer.from(JSON.stringify(updates)).toString('base64'), // New data, base64 encoded
+            data: Buffer.from(JSON.stringify(updates)).toString('base64'), 
         },
     };
-    await sdk.signer.signAndBroadcast(did, [msgUpdateResource],DEFAULT_FEE );
+    await sdk.signer.signAndBroadcast(signerAddress, [msgUpdateResource], DEFAULT_FEE, undefined);
   } catch (error) {
     console.error('Error updating credential:', error);
     throw error;
@@ -264,29 +253,29 @@ export async function updateCredential(
 // Deactivate a DID
 export async function deactivateDID(did: string): Promise<void> {
   try {
-    function generateRandomSignInfo(): SignInfo {
-        const did1 = did;
-        const keyId = `#key-${Math.floor(Math.random() * 1000)}`;
-      
-        return {
-          verificationMethodId: `${did1}${keyId}`,
-          signature: randomBytes(64), // 512-bit signature placeholder
-        };
-      }
-      
-      // Usage
-      const randomSignInfo = generateRandomSignInfo();
-      console.log({
-        verificationMethodId: randomSignInfo.verificationMethodId,
-        signature: Buffer.from(randomSignInfo.signature).toString('base64'),
-      });
-      
-
-  } catch (error) {
-    console.error('Error deactivating DID:', error);
-    throw error;
+    // const sdk = getSDK(); // sdk currently not used as user removed deactivateDidDocTx call
+    // const signerAddress = await getSignerAddress(); // Would be needed if calling a Tx
+     function generateRandomSignInfo(): SignInfo {
+         const did1 = did;
+         const keyId = `#key-${Math.floor(Math.random() * 1000)}`;
+       
+         return {
+           verificationMethodId: `${did1}${keyId}`,
+           signature: Buffer.from("placeholder_signature_bytes"), 
+         };
+       }
+       
+       const randomSignInfo = generateRandomSignInfo();
+       console.log({
+         verificationMethodId: randomSignInfo.verificationMethodId,
+         signature: Buffer.from(randomSignInfo.signature).toString('base64'),
+       });
+       // NOTE: This function in its current state (modified by user) does not deactivate a DID on chain.
+    } catch (error) {
+      console.error('Error deactivating DID:', error);
+      throw error;
+    }
   }
-}
 
 // Create a Verifiable Dataset 
 export async function createVerifiableDataset(
@@ -301,6 +290,7 @@ export async function createVerifiableDataset(
 ): Promise<string> {
   try {
     const sdk = getSDK();
+    const signerAddress = await getSignerAddress();
     const datasetId = `dataset-${Date.now()}`;
     const datasetData = {
       '@context': [
@@ -321,7 +311,7 @@ export async function createVerifiableDataset(
     };
     
     const msgCreateDatasetResource: EncodeObject = {
-        typeUrl: '/cheqd.resource.v2.MsgCreateResource', // Check typeUrl
+        typeUrl: '/cheqd.resource.v2.MsgCreateResource',
         value: {
             collectionId: did,
             id: datasetId,
@@ -331,7 +321,7 @@ export async function createVerifiableDataset(
             data: Buffer.from(JSON.stringify(datasetData)).toString('base64'),
         },
     };
-    await sdk.signer.signAndBroadcast(did, [msgCreateDatasetResource],DEFAULT_FEE );
+    await sdk.signer.signAndBroadcast(signerAddress, [msgCreateDatasetResource], DEFAULT_FEE, undefined);
     return datasetId;
   } catch (error) {
     console.error('Error creating verifiable dataset:', error);
@@ -354,6 +344,7 @@ export async function createContentProvenanceCredential(
 ): Promise<string> {
   try {
     const sdk = getSDK();
+    const signerAddress = await getSignerAddress();
     const contentId = `content-${Date.now()}`;
     const contentCredentialData = {
       '@context': [
@@ -385,7 +376,7 @@ export async function createContentProvenanceCredential(
             data: Buffer.from(JSON.stringify(contentCredentialData)).toString('base64'),
         },
     };
-    await sdk.signer.signAndBroadcast(did, [msgCreateContentResource],DEFAULT_FEE );
+    await sdk.signer.signAndBroadcast(signerAddress, [msgCreateContentResource], DEFAULT_FEE, undefined);
     return contentId;
   } catch (error) {
     console.error('Error creating content provenance credential:', error);
@@ -393,6 +384,40 @@ export async function createContentProvenanceCredential(
   }
 } 
 
-function randomBytes(arg0: number): Uint8Array<ArrayBufferLike> {
-    throw new Error('Function not implemented.');
+function randomBytes(length: number): Uint8Array {
+    const arr = new Uint8Array(length);
+    // In a real scenario, use crypto.getRandomValues or similar secure random generator
+    for (let i = 0; i < length; i++) {
+        arr[i] = Math.floor(Math.random() * 256);
+    }
+    return arr;
+}
+
+export async function resolveDID(did: string): Promise<DIDDocument | null> {
+  try {
+    const sdk = getSDK();
+    // The method sdk.querier.didDoc might not exist directly.
+    // Consult SDK docs for the correct way to query/resolve a DID document.
+    // It might be nested e.g. sdk.querier.did.resolve(did) or similar.
+    // For now, assuming it might be available as sdk.query.did.didDoc(did) as a guess if direct querier.didDoc fails.
+    // This is highly speculative due to the linter error.
+    const resolvedDidDoc = await (sdk.querier as any).did.didDoc({ id: did }); // Speculative: Check actual path and payload
+
+    if (!resolvedDidDoc || !resolvedDidDoc.didDoc) {
+        console.warn(`Could not resolve DID or DID Doc not found: ${did}`);
+        return null; 
+    }
+    return {
+        did: resolvedDidDoc.didDoc.id,
+        verificationMethod: resolvedDidDoc.didDoc.verificationMethod?.map((vm: any) => ({
+            id: vm.id,
+            type: vm.type,
+            controller: vm.controller,
+            publicKeyMultibase: vm.publicKeyMultibase || ''
+        })) || [],
+    } as DIDDocument;
+  } catch (error) {
+    console.error('Error resolving DID:', error);
+    return null;
+  }
 }

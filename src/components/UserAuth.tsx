@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Key, User, Shield, AlertCircle } from 'lucide-react';
-import { initializeSDK, createDID, resolveDID, DIDDocument } from '../services/cheqdService';
+import { initializeSDK, createDID, DIDDocument } from '../services/cheqdService';
 
 interface UserAuthProps {
   onLogin: (did: string, didDoc: DIDDocument) => void;
@@ -12,31 +12,31 @@ interface UserAuthProps {
 export default function UserAuth({ onLogin, isLoggedIn, userDID, onLogout }: UserAuthProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [mnemonic, setMnemonic] = useState('');
-  const [did, setDid] = useState('');
+  const [did, setDid] = useState<string | null>(null);
+  const [didDoc, setDidDoc] = useState<DIDDocument | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<string | null>(null);
   const [loginMethod, setLoginMethod] = useState<'create' | 'import'>('create');
 
   // Handle DID generation
   const handleCreateDID = async () => {
     setIsLoading(true);
-    setError('');
+    setError(null);
     
     try {
-      const wallet = await initializeSDK();
-      const didDoc = await createDID();
-      const accounts = await wallet.getAccounts();
-      const newDid = didDoc.did;
+      const wallet = await initializeSDK(mnemonic || undefined);
+      const newDidDoc = await createDID();
+      const newDid = newDidDoc.did;
       
       setDid(newDid);
-      setMnemonic('example_mnemonic_would_be_here_in_production'); // In production, this would be from the wallet
+      setDidDoc(newDidDoc);
       
       // Login with the new DID
-      onLogin(newDid, didDoc);
+      onLogin(newDid, newDidDoc);
       setIsModalOpen(false);
-    } catch (error) {
-      console.error('Error creating DID:', error);
-      setError('Failed to create DID. Please try again.');
+    } catch (err) {
+      console.error('DID Creation Error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to initialize or create DID');
     } finally {
       setIsLoading(false);
     }
@@ -170,7 +170,7 @@ export default function UserAuth({ onLogin, isLoggedIn, userDID, onLogout }: Use
                 </button>
                 
                 {/* Generated DID and Mnemonic */}
-                {did && (
+                {did && didDoc && (
                   <div className="mt-4 p-3 bg-blue-50 rounded-lg">
                     <h4 className="font-medium text-sm mb-2">Your New DID</h4>
                     <p className="text-xs font-mono bg-white p-2 rounded border border-gray-200 mb-3 break-all">
