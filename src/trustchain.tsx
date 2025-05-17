@@ -532,13 +532,7 @@ export default function TrustChainAI() {
           <section className="bg-white p-6 rounded-lg shadow">
             <h2 className="text-xl font-semibold mb-4">AI Provider Settings</h2>
             
-            {!isLoggedIn ? (
-              <div className="text-center p-4 bg-yellow-50 border border-yellow-200 rounded">
-                <p>Please log in to manage API provider settings.</p>
-                {/* Simple login form, you might want a modal for this */}
-                {/* This login form should ideally be part of the Layout component */}
-              </div>
-            ) : (
+            
               <div className="space-y-4">
                 {Object.entries(apiProviderSettings).map(([providerKey, settings]) => (
                   <div key={providerKey} className="bg-gray-50 p-4 rounded border border-gray-200">
@@ -556,7 +550,6 @@ export default function TrustChainAI() {
                         placeholder={`Enter your ${settings.name} API key`}
                         value={settings.apiKey}
                         onChange={(e) => handleApiKeyChange(providerKey, e.target.value)}
-                        disabled={!isLoggedIn}
                       />
                     </div>
                     <div className="mb-3">
@@ -565,7 +558,6 @@ export default function TrustChainAI() {
                         className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
                         value={settings.model}
                         onChange={(e) => handleModelChange(providerKey, e.target.value)}
-                        disabled={!isLoggedIn}
                       >
                         {/* Populate models based on providerKey */}
                         {providerKey === 'openai' && <>
@@ -590,7 +582,6 @@ export default function TrustChainAI() {
                             value={providerKey}
                             checked={activeAiProvider === providerKey}
                             onChange={() => setActiveAiProvider(providerKey)}
-                            disabled={!isLoggedIn || !settings.isApiKeySet}
                         />
                          <span className="ml-2 text-sm">{settings.isApiKeySet ? `Set as active` : `Set API key to activate`}</span>
                     </div>
@@ -598,7 +589,7 @@ export default function TrustChainAI() {
                       <button 
                         className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
                         onClick={() => handleStoreApiKey(providerKey)}
-                        disabled={!isLoggedIn || !settings.apiKey.trim()}
+                        disabled={!settings.apiKey.trim()}
                       >
                         {settings.isApiKeySet ? 'Update Key' : 'Save Key'}
                       </button>
@@ -606,7 +597,6 @@ export default function TrustChainAI() {
                   </div>
                 ))}
               </div>
-            )}
             
             <div className="bg-blue-50 p-4 rounded border border-blue-100">
               <div className="flex items-start">

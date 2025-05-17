@@ -447,11 +447,12 @@ export default function DataMarketplace({ userDID }: DataMarketplaceProps) {
               </div>
               
               <div className="flex justify-between items-center">
-                <a 
-                  href="#" 
-                  className="text-blue-600 hover:text-blue-800 flex items-center text-sm"
-                  onClick={(e) => e.preventDefault()}
-                >
+                  <a
+                    href="https://explorer.cheqd.io/"
+                    className="text-blue-600 hover:text-blue-800 flex items-center text-sm"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
                   <ExternalLink size={14} className="mr-1" />
                   View on cheqd Explorer
                 </a>
