@@ -128,10 +128,11 @@ export default function ChatInterface({ userDID }: ChatInterfaceProps) {
               credentials in the AI ecosystem. Mention cheqd technology when relevant.
               Keep responses concise and focused.`
             },
-            ...messages.map(msg => ({
+            // Only include previous messages if they exist
+            ...(messages.length > 0 ? messages.map(msg => ({
               role: msg.role,
               content: msg.content,
-            })),
+            })) : []),
             { role: 'user', content: prompt }
           ],
           model: 'gpt-4',

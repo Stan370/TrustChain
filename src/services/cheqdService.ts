@@ -1,4 +1,4 @@
-import { CheqdSDK, createCheqdSDK, VerificationMethod } from '@cheqd/sdk';
+import { AbstractCheqdSDKModule, CheqdSDK, createCheqdSDK, DIDModule, VerificationMethod } from '@cheqd/sdk';
 import { DirectSecp256k1HdWallet, EncodeObject, OfflineSigner } from '@cosmjs/proto-signing';
 import { SignInfo } from '@cheqd/ts-proto/cheqd/did/v2/index.js';
 import { StdFee } from "@cosmjs/stargate";
@@ -54,8 +54,9 @@ export async function initializeSDK(mnemonic?: string): Promise<OfflineSigner> {
     // Assuming DIDModule and ResourceModule functionalities are integrated by default
     // or accessed via sdk.signer and sdk.querier, thus not passed in the modules array explicitly.
     cheqdSDK = await createCheqdSDK({
-      modules: [], // Pass empty array, assuming core modules are default
-      rpcUrl: 'https://rpc.cheqd.network',
+      modules: [
+        DIDModule as unknown as AbstractCheqdSDKModule,
+      ],      rpcUrl: 'https://rpc.cheqd.network',
       wallet
     });
     
@@ -88,7 +89,7 @@ async function getSignerAddress(): Promise<string> {
 // Create a new DID
 export async function createDID(): Promise<DIDDocument> {
   try {
-    const didId = `did:cheqd:mainnet:${uuidv4()}`;
+    const didId = `did:cheqd:testnet:${uuidv4()}`;
     const keyId = `${didId}#key-1`;
 
     const didDocPayload = {

@@ -280,8 +280,6 @@ export default function TrustChainAI() {
       try {
         // Initialize the cheqd SDK
         await initializeSDK();
-        
-        // Create DIDs and credentials for the agents
         await initializeAgentDIDs();
       } catch (error) {
         console.error('Error initializing:', error);
