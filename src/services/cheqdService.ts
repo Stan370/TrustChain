@@ -55,8 +55,9 @@ export async function initializeSDK(mnemonic?: string): Promise<OfflineSigner> {
     // or accessed via sdk.signer and sdk.querier, thus not passed in the modules array explicitly.
     cheqdSDK = await createCheqdSDK({
       modules: [
-        DIDModule as unknown as AbstractCheqdSDKModule,
-      ],      rpcUrl: 'https://rpc.cheqd.network',
+      DIDModule as unknown as AbstractCheqdSDKModule,
+      ],      
+      rpcUrl: '/cheqd-rpc',
       wallet
     });
     
